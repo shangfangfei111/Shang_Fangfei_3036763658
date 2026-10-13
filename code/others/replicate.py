@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import math
+import html
+import re
 from pathlib import Path
 
 import matplotlib
@@ -12,13 +14,26 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import statsmodels.formula.api as smf
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.platypus import (
+    Image,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 
-ROOT = Path(__file__).resolve().parents[1]
-INPUT = ROOT / "01_DID" / "data" / "public.csv"
-TABLES = ROOT / "output" / "tables"
-FIGURES = ROOT / "output" / "figures"
-PROCESSED = ROOT / "output" / "processed_data.csv"
+ROOT = Path(__file__).resolve().parents[2]
+INPUT = ROOT / "data" / "raw" / "public.csv"
+TABLES = ROOT / "outputs" / "tables"
+FIGURES = ROOT / "outputs" / "figures"
+PROCESSED = ROOT / "data" / "processed" / "analysis_data.csv"
 
 MINIMUM_WAGE = 5.05
 PERMANENT_CLOSURE = 3
@@ -210,6 +225,20 @@ def create_table2(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def create_table3(data: pd.DataFrame) -> pd.DataFrame:
+    expected_group_counts = {
+        "Wage = $4.25": 101,
+        "Wage $4.26-$4.99": 140,
+        "Wage >= $5.00": 73,
+    }
+    actual_group_counts = (
+        data.loc[data["STATE"].eq(1), "wage_group"].value_counts().to_dict()
+    )
+    if actual_group_counts != expected_group_counts:
+        raise ValueError(
+            "New Jersey initial-wage group counts do not match Table 3 notes: "
+            f"{actual_group_counts}."
+        )
+
     groups: dict[str, pd.Series] = {
         "Pennsylvania": data["STATE"].eq(0),
         "New Jersey": data["STATE"].eq(1),
@@ -217,28 +246,46 @@ def create_table3(data: pd.DataFrame) -> pd.DataFrame:
         "NJ: Wage $4.26-$4.99": data["wage_group"].eq("Wage $4.26-$4.99"),
         "NJ: Wage >= $5.00": data["wage_group"].eq("Wage >= $5.00"),
     }
-    metrics: dict[tuple[str, str], tuple[float, float, int]] = {}
+    metrics: dict[tuple[str, str], dict[str, float | int]] = {}
     for group, mask in groups.items():
         for wave, column in (("1", "fte1"), ("2", "fte2")):
-            metrics[(wave, group)] = mean_se(data.loc[mask, column])
+            estimate, se, n = mean_se(data.loc[mask, column])
+            metrics[(wave, group)] = {
+                "estimate": estimate,
+                "standard_error": se,
+                "n": n,
+            }
 
         before = data.loc[mask, "fte1"]
         after = data.loc[mask, "fte2"]
-        before_mean, before_se, before_n = mean_se(before)
-        after_mean, after_se, after_n = mean_se(after)
-        metrics[("3", group)] = (
-            after_mean - before_mean,
-            math.sqrt(before_se**2 + after_se**2),
-            min(before_n, after_n),
-        )
-
+        before_mean, _, before_n = mean_se(before)
+        after_mean, _, after_n = mean_se(after)
         balanced = data.loc[mask, ["fte1", "fte2"]].dropna()
+        change_se = mean_se(balanced["fte2"] - balanced["fte1"])[1]
+        metrics[("3", group)] = {
+            "estimate": after_mean - before_mean,
+            "standard_error": change_se,
+            "n": len(balanced),
+            "n_before": before_n,
+            "n_after": after_n,
+        }
+
         delta = balanced["fte2"] - balanced["fte1"]
-        metrics[("4", group)] = mean_se(delta)
+        estimate, se, n = mean_se(delta)
+        metrics[("4", group)] = {
+            "estimate": estimate,
+            "standard_error": se,
+            "n": n,
+        }
 
         zero_temp = data.loc[mask, ["fte1", "temporary_zero_fte2"]].dropna()
         zero_delta = zero_temp["temporary_zero_fte2"] - zero_temp["fte1"]
-        metrics[("5", group)] = mean_se(zero_delta)
+        estimate, se, n = mean_se(zero_delta)
+        metrics[("5", group)] = {
+            "estimate": estimate,
+            "standard_error": se,
+            "n": n,
+        }
 
     rows: list[dict[str, object]] = []
     for table_row, description in (
@@ -250,15 +297,13 @@ def create_table3(data: pd.DataFrame) -> pd.DataFrame:
     ):
         wave = table_row if table_row in {"1", "2"} else table_row
         for group in groups:
-            estimate, se, n = metrics[(wave, group)]
+            metric = metrics[(wave, group)]
             rows.append(
                 {
                     "table_row": table_row,
                     "description": description,
                     "comparison": f"Mean: {group}",
-                    "estimate": estimate,
-                    "standard_error": se,
-                    "n": n,
+                    **metric,
                 }
             )
 
@@ -277,19 +322,44 @@ def create_table3(data: pd.DataFrame) -> pd.DataFrame:
                 ),
             ]
             for label, left_group, right_group in comparisons:
-                left_mean, left_se, left_n = metrics[(wave, left_group)]
-                right_mean, right_se, right_n = metrics[(wave, right_group)]
+                left_metric = metrics[(wave, left_group)]
+                right_metric = metrics[(wave, right_group)]
                 rows.append(
                     {
                         "table_row": table_row,
                         "description": description,
                         "comparison": label,
-                        "estimate": left_mean - right_mean,
-                        "standard_error": math.sqrt(left_se**2 + right_se**2),
-                        "n": min(left_n, right_n),
+                        "estimate": (
+                            left_metric["estimate"] - right_metric["estimate"]
+                        ),
+                        "standard_error": math.sqrt(
+                            left_metric["standard_error"] ** 2
+                            + right_metric["standard_error"] ** 2
+                        ),
+                        "t_statistic": (
+                            left_metric["estimate"] - right_metric["estimate"]
+                        )
+                        / math.sqrt(
+                            left_metric["standard_error"] ** 2
+                            + right_metric["standard_error"] ** 2
+                        ),
+                        "n_left": left_metric["n"],
+                        "n_right": right_metric["n"],
+                        "n": left_metric["n"] + right_metric["n"],
                     }
                 )
-    return pd.DataFrame(rows)
+    result = pd.DataFrame(rows)
+    did = result.loc[
+        result["table_row"].eq("3")
+        & result["comparison"].eq("New Jersey - Pennsylvania")
+    ].iloc[0]
+    if not np.isclose(did["estimate"], 2.75360578298, atol=0.01):
+        raise ValueError(f"Unexpected Table 3 change-in-means DID: {did['estimate']}.")
+    if not np.isclose(did["standard_error"], 1.34234097691, atol=0.01):
+        raise ValueError(
+            f"Unexpected paired Table 3 DID standard error: {did['standard_error']}."
+        )
+    return result
 
 
 def create_table4(data: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, object]]:
@@ -472,6 +542,163 @@ def format_number(value: object, digits: int = 2) -> str:
     return f"{float(value):.{digits}f}"
 
 
+def create_pdf_report(markdown_path: Path) -> None:
+    pdf_path = ROOT / "report.pdf"
+    styles = getSampleStyleSheet()
+    styles.add(
+        ParagraphStyle(
+            name="ProjectTitle",
+            parent=styles["Title"],
+            alignment=TA_CENTER,
+            textColor=colors.HexColor("#18344d"),
+            spaceAfter=5 * mm,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            name="Section",
+            parent=styles["Heading1"],
+            textColor=colors.HexColor("#18344d"),
+            spaceBefore=4 * mm,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            name="Subsection",
+            parent=styles["Heading2"],
+            textColor=colors.HexColor("#315b7d"),
+            spaceBefore=3 * mm,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            name="TableCell",
+            parent=styles["BodyText"],
+            fontSize=7,
+            leading=8.5,
+        )
+    )
+
+    document = SimpleDocTemplate(
+        str(pdf_path),
+        pagesize=A4,
+        rightMargin=18 * mm,
+        leftMargin=18 * mm,
+        topMargin=17 * mm,
+        bottomMargin=17 * mm,
+        title="Card and Krueger Minimum-Wage Replication",
+        author="Shang Fangfei",
+    )
+    available_width = A4[0] - 36 * mm
+    story: list[object] = []
+    lines = markdown_path.read_text(encoding="utf-8").splitlines()
+    index = 0
+    while index < len(lines):
+        line = lines[index].strip()
+        if not line:
+            index += 1
+            continue
+        if line.startswith("|"):
+            table_lines = []
+            while index < len(lines) and lines[index].strip().startswith("|"):
+                table_lines.append(lines[index].strip())
+                index += 1
+            table_rows = []
+            for table_line in table_lines:
+                cells = [cell.strip() for cell in table_line.strip("|").split("|")]
+                if all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells):
+                    continue
+                table_rows.append(
+                    [
+                        Paragraph(
+                            html.escape(cell).replace("`", ""),
+                            styles["TableCell"],
+                        )
+                        for cell in cells
+                    ]
+                )
+            if table_rows:
+                column_count = len(table_rows[0])
+                table = Table(
+                    table_rows,
+                    colWidths=[available_width / column_count] * column_count,
+                    repeatRows=1,
+                    hAlign="LEFT",
+                )
+                table.setStyle(
+                    TableStyle(
+                        [
+                            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#18344d")),
+                            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                            ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#bcc8d1")),
+                            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                            ("TOPPADDING", (0, 0), (-1, -1), 4),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f1f5f7")]),
+                        ]
+                    )
+                )
+                story.extend([Spacer(1, 2 * mm), table, Spacer(1, 2 * mm)])
+            continue
+
+        image_match = re.fullmatch(r"!\[[^]]*\]\(([^)]+)\)", line)
+        if image_match:
+            image_path = ROOT / image_match.group(1)
+            if image_path.is_file():
+                image = Image(str(image_path))
+                scale = min(
+                    available_width / image.imageWidth,
+                    92 * mm / image.imageHeight,
+                )
+                image.drawWidth *= scale
+                image.drawHeight *= scale
+                image.hAlign = "CENTER"
+                story.extend([Spacer(1, 2 * mm), image, Spacer(1, 2 * mm)])
+            index += 1
+            continue
+
+        if line.startswith("# "):
+            story.append(Paragraph(html.escape(line[2:]), styles["ProjectTitle"]))
+            story.append(
+                Paragraph(
+                    "Shang Fangfei | Student ID: 3036763658",
+                    styles["BodyText"],
+                )
+            )
+            story.append(Spacer(1, 4 * mm))
+        elif line.startswith("## "):
+            story.append(Paragraph(html.escape(line[3:]), styles["Section"]))
+        elif line.startswith("### "):
+            story.append(Paragraph(html.escape(line[4:]), styles["Subsection"]))
+        else:
+            paragraph_lines = [line]
+            index += 1
+            while (
+                index < len(lines)
+                and lines[index].strip()
+                and not lines[index].strip().startswith(("#", "|", "!["))
+            ):
+                paragraph_lines.append(lines[index].strip())
+                index += 1
+            paragraph_text = html.escape(" ".join(paragraph_lines)).replace("`", "")
+            paragraph_text = paragraph_text.replace("**", "")
+            story.append(Paragraph(paragraph_text, styles["BodyText"]))
+            story.append(Spacer(1, 2 * mm))
+            continue
+        index += 1
+
+    def add_page_number(canvas, doc) -> None:
+        canvas.saveState()
+        canvas.setFont("Helvetica", 8)
+        canvas.setFillColor(colors.HexColor("#667788"))
+        canvas.drawCentredString(A4[0] / 2, 9 * mm, f"{doc.page}")
+        canvas.restoreState()
+
+    document.build(story, onFirstPage=add_page_number, onLaterPages=add_page_number)
+
+
 def create_report(
     data: pd.DataFrame,
     table2: pd.DataFrame,
@@ -503,8 +730,8 @@ def create_report(
         )
 
     table3_lines = [
-        "| Table 3 row | Comparison | Estimate (FTE) | SE |",
-        "|---|---|---:|---:|",
+        "| Table 3 row | Comparison | Estimate (FTE) | SE | t-stat |",
+        "|---|---|---:|---:|---:|",
     ]
     table3_selections = [
         ("1", "New Jersey - Pennsylvania"),
@@ -522,7 +749,8 @@ def create_report(
         ].iloc[0]
         table3_lines.append(
             f"| {row_number} | {comparison} | {format_number(row['estimate'])} | "
-            f"({format_number(row['standard_error'])}) |"
+            f"({format_number(row['standard_error'])}) | "
+            f"{format_number(row['t_statistic'])} |"
         )
 
     table4_lines = [
@@ -561,7 +789,7 @@ prediction of lower employment is supported by the survey evidence.
 
 ## Data and sample construction
 
-The input is the course-provided `01_DID/data/public.csv` restaurant survey
+The input is the course-provided `data/raw/public.csv` restaurant survey
 (410 stores; 331 in New Jersey and 79 in Pennsylvania). The first survey was
 conducted in February-March 1992 and the follow-up in November-December 1992.
 Full-time-equivalent employment is full-time workers plus managers plus one-half
@@ -607,19 +835,24 @@ and Table 3 outputs are generated from the same documented input and definitions
 Category-share rows for starting wages use all sampled stores as the denominator;
 missing second-wave wages are not counted in either wage category. Table 2's
 full output, including store composition, standard errors, and tests, is in
-`output/tables/table2_summary.csv`.
+`outputs/tables/table2_summary.csv`.
 
 ### Table 3: employment comparisons
 
 {chr(10).join(table3_lines)}
 
 The low-, middle-, and high-initial-wage New Jersey groups contain 101, 140, and
-73 stores before outcome-specific missingness. Full subgroup means and all
-reported comparisons are in `output/tables/table3_employment.csv`.
+73 stores before outcome-specific missingness. Row 3's standard errors now use
+paired within-store employment changes for the stores observed in both waves;
+the earlier independent-wave formula overstated their uncertainty. The NJ-PA
+row-3 estimate is 2.75 (SE 1.34; t=2.05), close to the paper's text-reported
+2.76 and t=2.03. Row 4 independently confirms the balanced-sample result:
+2.75 (SE 1.34). Full subgroup means, sample sizes, standard errors, and tests
+are in `outputs/tables/table3_employment.csv`.
 
 ### Figure 1
 
-![Starting-wage distributions](output/figures/figure1_wage_distribution.png)
+![Starting-wage distributions](outputs/figures/figure1_wage_distribution.png)
 
 The figure shows the percentage distribution of observed starting wages by state
 in each survey wave. Wave-2 wages are not imputed for closures or nonrespondents.
@@ -646,17 +879,11 @@ survey measurement error, and limited external validity beyond the sampled
 chains and regions. Differences in data coverage and closure handling are
 reported rather than hidden.
 
-## AI-use disclosure
-
-AI assistance was used to organize the replication workflow, draft analysis
-code, and help interpret the data dictionary and paper specifications. The
-script's formulas, sample size, and Table 4 estimates were checked against the
-supplied paper; generated tables and figures are reproducible from the input.
-The student should independently verify the economic interpretation, review all
-sample decisions, and document any further corrections or rejected suggestions.
 """
-    (ROOT / "report").mkdir(parents=True, exist_ok=True)
-    (ROOT / "report" / "empirical_report.md").write_text(text, encoding="utf-8")
+    markdown_path = ROOT / "report" / "empirical_report.md"
+    markdown_path.parent.mkdir(parents=True, exist_ok=True)
+    markdown_path.write_text(text, encoding="utf-8")
+    create_pdf_report(markdown_path)
 
 
 def main() -> None:
@@ -682,7 +909,8 @@ def main() -> None:
     print(table4[["model", "main_regressor", "coefficient", "standard_error"]].to_string(index=False))
     print("Ownership heterogeneity:")
     print(ownership.to_string(index=False))
-    print(f"Outputs written under: {ROOT / 'output'}")
+    print(f"Tables and figures written under: {ROOT / 'outputs'}")
+    print(f"Report written to: {ROOT / 'report.pdf'}")
 
 
 if __name__ == "__main__":

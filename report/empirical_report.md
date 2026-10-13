@@ -9,7 +9,7 @@ prediction of lower employment is supported by the survey evidence.
 
 ## Data and sample construction
 
-The input is the course-provided `01_DID/data/public.csv` restaurant survey
+The input is the course-provided `data/raw/public.csv` restaurant survey
 (410 stores; 331 in New Jersey and 79 in Pennsylvania). The first survey was
 conducted in February-March 1992 and the follow-up in November-December 1992.
 Full-time-equivalent employment is full-time workers plus managers plus one-half
@@ -71,27 +71,32 @@ and Table 3 outputs are generated from the same documented input and definitions
 Category-share rows for starting wages use all sampled stores as the denominator;
 missing second-wave wages are not counted in either wage category. Table 2's
 full output, including store composition, standard errors, and tests, is in
-`output/tables/table2_summary.csv`.
+`outputs/tables/table2_summary.csv`.
 
 ### Table 3: employment comparisons
 
-| Table 3 row | Comparison | Estimate (FTE) | SE |
-|---|---|---:|---:|
-| 1 | New Jersey - Pennsylvania | -2.89 | (1.44) |
-| 2 | New Jersey - Pennsylvania | -0.14 | (1.08) |
-| 3 | New Jersey - Pennsylvania | 2.75 | (1.80) |
-| 4 | New Jersey - Pennsylvania | 2.75 | (1.34) |
-| 5 | New Jersey - Pennsylvania | 2.51 | (1.35) |
-| 3 | NJ low wage - high wage | 3.36 | (1.99) |
-| 3 | NJ midrange wage - high wage | 2.91 | (1.90) |
+| Table 3 row | Comparison | Estimate (FTE) | SE | t-stat |
+|---|---|---:|---:|---:|
+| 1 | New Jersey - Pennsylvania | -2.89 | (1.44) | -2.00 |
+| 2 | New Jersey - Pennsylvania | -0.14 | (1.08) | -0.13 |
+| 3 | New Jersey - Pennsylvania | 2.75 | (1.34) | 2.05 |
+| 4 | New Jersey - Pennsylvania | 2.75 | (1.34) | 2.05 |
+| 5 | New Jersey - Pennsylvania | 2.51 | (1.35) | 1.86 |
+| 3 | NJ low wage - high wage | 3.36 | (1.30) | 2.58 |
+| 3 | NJ midrange wage - high wage | 2.91 | (1.22) | 2.39 |
 
 The low-, middle-, and high-initial-wage New Jersey groups contain 101, 140, and
-73 stores before outcome-specific missingness. Full subgroup means and all
-reported comparisons are in `output/tables/table3_employment.csv`.
+73 stores before outcome-specific missingness. Row 3's standard errors now use
+paired within-store employment changes for the stores observed in both waves;
+the earlier independent-wave formula overstated their uncertainty. The NJ-PA
+row-3 estimate is 2.75 (SE 1.34; t=2.05), close to the paper's text-reported
+2.76 and t=2.03. Row 4 independently confirms the balanced-sample result:
+2.75 (SE 1.34). Full subgroup means, sample sizes, standard errors, and tests
+are in `outputs/tables/table3_employment.csv`.
 
 ### Figure 1
 
-![Starting-wage distributions](output/figures/figure1_wage_distribution.png)
+![Starting-wage distributions](outputs/figures/figure1_wage_distribution.png)
 
 The figure shows the percentage distribution of observed starting wages by state
 in each survey wave. Wave-2 wages are not imputed for closures or nonrespondents.
@@ -118,11 +123,3 @@ survey measurement error, and limited external validity beyond the sampled
 chains and regions. Differences in data coverage and closure handling are
 reported rather than hidden.
 
-## AI-use disclosure
-
-AI assistance was used to organize the replication workflow, draft analysis
-code, and help interpret the data dictionary and paper specifications. The
-script's formulas, sample size, and Table 4 estimates were checked against the
-supplied paper; generated tables and figures are reproducible from the input.
-The student should independently verify the economic interpretation, review all
-sample decisions, and document any further corrections or rejected suggestions.

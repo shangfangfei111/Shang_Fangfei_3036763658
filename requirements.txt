@@ -1,5 +1,6 @@
 matplotlib>=3.6
 numpy>=1.23
 pandas>=2.0
+reportlab>=4.0
 scipy>=1.9
 statsmodels>=0.14
