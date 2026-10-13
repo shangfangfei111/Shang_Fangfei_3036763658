@@ -1,0 +1,9 @@
+ownership,state,wave,mean_fte,standard_error,N
+Franchise-owned,Pennsylvania,Wave 1,26.005102040816325,1.8352285609581567,49
+Franchise-owned,Pennsylvania,Wave 2,23.596938775510203,1.2185851826137775,49
+Franchise-owned,New Jersey,Wave 1,20.83233830845771,0.6169373441378921,201
+Franchise-owned,New Jersey,Wave 2,21.55597014925373,0.6379953998613946,201
+Company-owned,Pennsylvania,Wave 1,18.432692307692307,1.6542810251160993,26
+Company-owned,Pennsylvania,Wave 2,16.384615384615383,1.1199442610813246,26
+Company-owned,New Jersey,Wave 1,19.68287037037037,0.9644265774241472,108
+Company-owned,New Jersey,Wave 2,19.671296296296298,0.9530030788714152,108

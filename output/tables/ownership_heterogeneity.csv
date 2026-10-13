@@ -1,0 +1,4 @@
+term,estimate,clustered_standard_error,p_value,N_store_waves,N_stores
+NJ x post (franchise-owned baseline),3.1317951061021203,2.6647367242461435,0.2398852154325558,768,383
+"Additional NJ x post effect, company-owned",-1.0378820626238632,3.3977440569767126,0.7600142250225422,768,383
+NJ x post (company-owned total),2.093913043478257,,,768,383

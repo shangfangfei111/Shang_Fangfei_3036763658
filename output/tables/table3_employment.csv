@@ -1,0 +1,41 @@
+table_row,description,comparison,estimate,standard_error,n
+1,"FTE employment before, all available observations",Mean: Pennsylvania,23.33116883116883,1.3511488614751332,77
+1,"FTE employment before, all available observations",Mean: New Jersey,20.439408099688475,0.5082607034147913,321
+1,"FTE employment before, all available observations",Mean: NJ: Wage = $4.25,19.556701030927837,0.7748557498174211,97
+1,"FTE employment before, all available observations",Mean: NJ: Wage $4.26-$4.99,20.08065693430657,0.8412736286187227,137
+1,"FTE employment before, all available observations",Mean: NJ: Wage >= $5.00,22.25,1.1357993843318863,71
+1,"FTE employment before, all available observations",New Jersey - Pennsylvania,-2.891760731480357,1.4435831075837815,77
+1,"FTE employment before, all available observations",NJ low wage - high wage,-2.6932989690721634,1.3749333345561923,71
+1,"FTE employment before, all available observations",NJ midrange wage - high wage,-2.169343065693429,1.4134290076470075,71
+2,"FTE employment after, all available observations",Mean: Pennsylvania,21.165584415584416,0.9432211554579522,77
+2,"FTE employment after, all available observations",Mean: New Jersey,21.02742946708464,0.5203094414948162,319
+2,"FTE employment after, all available observations",Mean: NJ: Wage = $4.25,20.877551020408163,1.00590151161394,98
+2,"FTE employment after, all available observations",Mean: NJ: Wage $4.26-$4.99,20.955555555555556,0.7556076828179539,135
+2,"FTE employment after, all available observations",Mean: NJ: Wage >= $5.00,20.213768115942027,1.025104159585108,69
+2,"FTE employment after, all available observations",New Jersey - Pennsylvania,-0.13815494849977483,1.0772131000930512,77
+2,"FTE employment after, all available observations",NJ low wage - high wage,0.6637829044661352,1.4362020711118266,69
+2,"FTE employment after, all available observations",NJ midrange wage - high wage,0.7417874396135282,1.2734918564059248,69
+3,Change in mean FTE employment,Mean: Pennsylvania,-2.1655844155844157,1.647807450513859,77
+3,Change in mean FTE employment,Mean: New Jersey,0.5880213673961663,0.7273588231020134,319
+3,Change in mean FTE employment,Mean: NJ: Wage = $4.25,1.320849989480326,1.2697398489818013,97
+3,Change in mean FTE employment,Mean: NJ: Wage $4.26-$4.99,0.8748986212489847,1.1307892325905966,135
+3,Change in mean FTE employment,Mean: NJ: Wage >= $5.00,-2.0362318840579725,1.5299930651631668,69
+3,Change in mean FTE employment,New Jersey - Pennsylvania,2.753605782980582,1.801199670084727,77
+3,Change in mean FTE employment,NJ low wage - high wage,3.3570818735382986,1.9882449707065046,69
+3,Change in mean FTE employment,NJ midrange wage - high wage,2.911130505306957,1.90251493239612,69
+4,"Change in FTE employment, balanced sample",Mean: Pennsylvania,-2.283333333333333,1.2532689987321888,75
+4,"Change in FTE employment, balanced sample",Mean: New Jersey,0.4666666666666666,0.4808285714304861,309
+4,"Change in FTE employment, balanced sample",Mean: NJ: Wage = $4.25,1.2047872340425532,0.8224897575362051,94
+4,"Change in FTE employment, balanced sample",Mean: NJ: Wage $4.26-$4.99,0.7098484848484847,0.6862267802286234,132
+4,"Change in FTE employment, balanced sample",Mean: NJ: Wage >= $5.00,-2.156716417910448,1.0073205002097934,67
+4,"Change in FTE employment, balanced sample",New Jersey - Pennsylvania,2.75,1.342340976908276,75
+4,"Change in FTE employment, balanced sample",NJ low wage - high wage,3.361503651953001,1.3004553015751343,67
+4,"Change in FTE employment, balanced sample",NJ midrange wage - high wage,2.866564902758933,1.2188526506702324,67
+5,"Change in FTE employment, temporary closures set to zero",Mean: Pennsylvania,-2.283333333333333,1.2532689987321888,75
+5,"Change in FTE employment, temporary closures set to zero",Mean: New Jersey,0.22587859424920123,0.49097877127211154,313
+5,"Change in FTE employment, temporary closures set to zero",Mean: NJ: Wage = $4.25,0.8973684210526316,0.8699159992208888,95
+5,"Change in FTE employment, temporary closures set to zero",Mean: NJ: Wage $4.26-$4.99,0.49402985074626865,0.6928375419193127,134
+5,"Change in FTE employment, temporary closures set to zero",Mean: NJ: Wage >= $5.00,-2.389705882352941,1.0193795770715115,68
+5,"Change in FTE employment, temporary closures set to zero",New Jersey - Pennsylvania,2.5092119275825344,1.3460101548736754,75
+5,"Change in FTE employment, temporary closures set to zero",NJ low wage - high wage,3.2870743034055727,1.3401076702455557,68
+5,"Change in FTE employment, temporary closures set to zero",NJ midrange wage - high wage,2.88373573309921,1.2325415131521085,68
